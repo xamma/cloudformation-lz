@@ -1,0 +1,125 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creates a small Landingzone with VPC, Networking and Instance"
+
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: "Name"
+          Value: "MyVPC"
+
+  PublicSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: "Name"
+          Value: "PublicSubnet"
+  
+  PrivateSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+      Tags:
+        - Key: "Name"
+          Value: "PrivateSubnet"
+  
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: "InternetGateway"
+  
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  
+  RouteTablePublic:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: "RouteTablePublic"
+  
+  RoutePublic:
+    Type: "AWS::EC2::Route"
+    DependsOn: "AttachGateway"
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+  
+  AssociatePublic:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RouteTablePublic
+
+  KeyPair:
+    Type: "AWS::EC2::KeyPair"
+    Properties:
+      KeyName: "MyKeyPair"
+      PublicKeyMaterial: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDWPzvlNDPgore8qSPvkCDC7JR5i89LMOIwAqk7iTbJCL8EZXToPMhmXZjE7pELNkqlCKyFYD/OpskXW/RElwiu9cfE5P9DL3cZdU4tSvSyjd2DqfnnbjoqKXOLwaolLpBtFyiiwzEhDgxz8si5DN/pWqr3SMpWBBG4L4o15wyBDAA3ZRFuyjX3l1yg2glPd9Jy7u59FK/1S2lY479rpuNyKhd/j0NUkPN7B36D33jWFawYV+LHmEj/lpMF9LpdyQqtF2nHPbNzdLRgNxMVUKHGyX7rM+/ChXJhd6HEm04JBMCM4YSFR6pFjUOKnhf8y9Gmf63vSM+uPmYz7HmzjQV9awh6Pm5gdcrVRZbeXpR4Uehb8DjUGQES2T09sF5CWcBblMNt7JNIk/gLT7Q5Jjun+xjSQEWvioWaWIJ4JCFHsr9vqut2J3ipC1sMBedgRJiDuh3ur+SDezrk8o6d/ghAeSmirf5eI1UIcAZ7xiElKjxI0cSrsgh0hmMgFlIhupk="
+      Tags:
+        - Key: "Name"
+          Value: "MyKeyPair"
+  
+  EC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: "ami-0557a15b87f6559cf"
+      InstanceType: "t2.micro"
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          AssociatePublicIpAddress: true
+          GroupSet:
+            - !Ref InstanceSecurityGroupIngress
+            - !Ref InstanceSecurityGroupEgress
+          SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: "Name"
+          Value: "MyEC2Instance"
+  
+  InstanceSecurityGroupIngress:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow ingress to instance"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: "Name"
+          Value: "IngressSG"
+
+  InstanceSecurityGroupEgress:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow egress from Instance"
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: "Name"
+          Value: "EgressSG"
