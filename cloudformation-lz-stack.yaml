@@ -2,11 +2,45 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Creates a small Landingzone with VPC, Networking and Instance"
 
+Parameters:
+  VPCCIDRAddr:
+    Type: "String"
+    Description: "CIDR Address for the VPC"
+    Default: "10.0.0.0/16"
+  PublicSubnetAZ:
+    Type: "AWS::EC2::AvailabilityZone::Name"
+    Description: "The Availability Zone for the public subnet"
+    Default: "us-east-1a"
+  PrivateSubnetAZ:
+    Type: "AWS::EC2::AvailabilityZone::Name"
+    Description: "The Availability Zone for the private subnet"
+    Default: "us-east-1b"
+  PublicSubnetCIDR:
+    Type: "String"
+    Description: "CIDR Address for the public subnet"
+    Default: "10.0.1.0/24"
+  PrivateSubnetCIDR:
+    Type: "String"
+    Description: "CIDR Address for the private subnet"
+    Default: "10.0.2.0/24"
+  InstanceAMI:
+    Type: "AWS::EC2::Image::Id"
+    Description: "AMI ID to use for the instance"
+    Default: "ami-0557a15b87f6559cf"
+  InstanceType:
+    Type: "String"
+    Description: "Instance Type"
+    Default: "t2.micro"
+  PubKey:
+    Type: "String"
+    Description: "Public Key Material for SSH"
+    Default: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDttlPdTIG5+yllaxSTayJZmLDzo35sxRrhA+5uGZP6x/5RGt/vtfSkWgyHkCCBYMa9T/s3T7QDkYHEGi5ob2r2qkEXjhnY+P/OUHZ38gR5B5uAbvQ+yqL1qb0mfBl+TdjCU/5GrN5PjpJvHY1F6P7wNyQMH/+437xz+Xdlt4uKvc4ED4fJISwwDmmmONQQZQ6uljD2PAq5FotJnle6b3a4KP/laM6VI66ELZTqFcjMw7/orviEvHNlFjgeLHTU5bmHJHo2GDb6U7D47N1Dby3flT8rFvPbZ4N2A+1F1eW6FGD5bYcaTcSDD5oldlOo4lrAVpknV9qm9cyMiNN3Zla1"
+
 Resources:
   VPC:
     Type: "AWS::EC2::VPC"
     Properties:
-      CidrBlock: "10.0.0.0/16"
+      CidrBlock: !Ref VPCCIDRAddr
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
@@ -17,8 +51,8 @@ Resources:
     Type: "AWS::EC2::Subnet"
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: "10.0.1.0/24"
-      AvailabilityZone: "us-east-1a"
+      CidrBlock: !Ref PublicSubnetCIDR
+      AvailabilityZone: !Ref PublicSubnetAZ
       Tags:
         - Key: "Name"
           Value: "PublicSubnet"
@@ -27,8 +61,8 @@ Resources:
     Type: "AWS::EC2::Subnet"
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: "10.0.2.0/24"
-      AvailabilityZone: "us-east-1b"
+      CidrBlock: !Ref PrivateSubnetCIDR
+      AvailabilityZone: !Ref PrivateSubnetAZ
       Tags:
         - Key: "Name"
           Value: "PrivateSubnet"
@@ -72,7 +106,7 @@ Resources:
     Type: "AWS::EC2::KeyPair"
     Properties:
       KeyName: "MyKeyPair"
-      PublicKeyMaterial: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDWPzvlNDPgore8qSPvkCDC7JR5i89LMOIwAqk7iTbJCL8EZXToPMhmXZjE7pELNkqlCKyFYD/OpskXW/RElwiu9cfE5P9DL3cZdU4tSvSyjd2DqfnnbjoqKXOLwaolLpBtFyiiwzEhDgxz8si5DN/pWqr3SMpWBBG4L4o15wyBDAA3ZRFuyjX3l1yg2glPd9Jy7u59FK/1S2lY479rpuNyKhd/j0NUkPN7B36D33jWFawYV+LHmEj/lpMF9LpdyQqtF2nHPbNzdLRgNxMVUKHGyX7rM+/ChXJhd6HEm04JBMCM4YSFR6pFjUOKnhf8y9Gmf63vSM+uPmYz7HmzjQV9awh6Pm5gdcrVRZbeXpR4Uehb8DjUGQES2T09sF5CWcBblMNt7JNIk/gLT7Q5Jjun+xjSQEWvioWaWIJ4JCFHsr9vqut2J3ipC1sMBedgRJiDuh3ur+SDezrk8o6d/ghAeSmirf5eI1UIcAZ7xiElKjxI0cSrsgh0hmMgFlIhupk="
+      PublicKeyMaterial: !Ref PubKey
       Tags:
         - Key: "Name"
           Value: "MyKeyPair"
@@ -80,8 +114,8 @@ Resources:
   EC2Instance:
     Type: "AWS::EC2::Instance"
     Properties:
-      ImageId: "ami-0557a15b87f6559cf"
-      InstanceType: "t2.micro"
+      ImageId: !Ref InstanceAMI
+      InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPair
       NetworkInterfaces:
         - DeviceIndex: "0"
@@ -123,3 +157,11 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "EgressSG"
+
+Outputs:
+  InstancePublicIP:
+    Value: !GetAtt EC2Instance.PublicIp
+    Description: "Public IP address of the EC2 instance"
+  InstancePublicDNSName:
+    Value: !GetAtt EC2Instance.PublicDnsName
+    Description: "Public DNS name of the EC2 instance"
